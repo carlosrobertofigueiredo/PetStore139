@@ -1,0 +1,3 @@
+petId, categoryId, CategoryName, petName, photoUrls, tagsIds, tagsName, status
+350675,1,dog,Thor,,1;2,vacinado;castrado,available
+350676,2,cat,Gordofield,,1;3,vacinado;vermifugado,available
