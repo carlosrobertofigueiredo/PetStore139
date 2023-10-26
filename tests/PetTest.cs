@@ -13,6 +13,8 @@ public class PetTest
     // Endereço da API
     private const string BASE_URL = "https://petstore.swagger.io/v2/";
 
+    // public String token;  // seria uma forma de fazer
+
     public static IEnumerable<TestCaseData> getTestData()
     {
         String caminhoMassa = @"C:\Iterasys\PetStore139\fixtures\pets.csv";
@@ -25,7 +27,7 @@ public class PetTest
         while (!reader.EndOfStream)
         {
             var line = reader.ReadLine();
-            var values = line.Split(", ");
+            var values = line.Split(",");
 
             yield return new TestCaseData(int.Parse(values[0]), int.Parse(values[1]), values[2], values[3], values[4], values[5], values[6], values[7]);
         }
@@ -176,7 +178,7 @@ public class PetTest
                               String categoryName,
                               String petName,
                               String photoUrls,
-                              String tagsId,
+                              String tagsIds,
                               String tagsName,
                               String status)
     {
@@ -186,10 +188,31 @@ public class PetTest
         petModel.category = new Category(categoryId, categoryName);
         petModel.name = petName;
         petModel.photoUrls = new string[] { photoUrls };
-        petModel.tags = new Tag[]{new Tag(1, "Vacinado"),
-                                  new Tag(2, "castrado")};
+
+        //Código para gerar as multiplas tags que o pet pode ter
+        //separando as informações
+        String[] tagsIdsList = tagsIds.Split(";");
+        String[] tagsNameList = tagsName.Split(";");
+        List<Tag> tagList = new List<Tag>();
+
+        for (int i = 0; i < tagsIdsList.Length; i++)
+        {   //Vai pegar o Id
+            int tagId = int.Parse(tagsIdsList[i]);
+            //Vai pegar o name
+            String tagName = tagsNameList[i];
+
+            Tag tag = new Tag(tagId, tagName);
+            tagList.Add(tag); // Vai juntar as informarções organizadas
+
+        }
+        //Instanciando o objeto tags e organizando em forma de array
+        petModel.tags = tagList.ToArray();
         petModel.status = status;
 
+        // A estrtura de dados está pronta, agora vamos serializar
+        //Converte e serializa os dados transformando em um Json
+        String jsonBody = JsonConvert.SerializeObject(petModel, Formatting.Indented);
+        Console.WriteLine(jsonBody);
 
         // instancia o objeto do tipo RestClient com o endereço da API
         var client = new RestClient(BASE_URL);
@@ -198,8 +221,8 @@ public class PetTest
         // como "pet" e configurando o método para ser um post (inclusão)
         var request = new RestRequest("pet", Method.Post);
 
-        // armazena o conteúdo do arquivo pet1.json na memória
-        String jsonBody = File.ReadAllText(@"C:\Iterasys\PetStore139\fixtures\pet1.json");
+        /* armazena o conteúdo do arquivo pet1.json na memória
+        String jsonBody = File.ReadAllText(@"C:\Iterasys\PetStore139\fixtures\pet1.json"); */
 
         // adiciona na requisição o conteúdo do arquivo pet1.json
         request.AddBody(jsonBody);
@@ -220,22 +243,45 @@ public class PetTest
 
 
         //Valida o petId
-        //int petId = responseBody.id;
-        Assert.That(petId, Is.EqualTo(350675));
+        Assert.That((int)responseBody.id, Is.EqualTo(petId));
 
         // Valida o nome do animal na resposta
-        String name = responseBody.name.ToString();
-        Assert.That(name, Is.EqualTo("Thor"));
-        // OU
-        // Assert.That(responseBody.name.ToString(), Is.EqualTo("Athena"));
+        //String name = responseBody.name.ToString();
+        Assert.That((String)responseBody.name, Is.EqualTo(petName));
+
 
         // Valida o status do animal na resposta
         //String status = responseBody.status;
-        Assert.That(status, Is.EqualTo("available"));
+        Assert.That((String)responseBody.status, Is.EqualTo(status));
 
-        //Armazenar os dados obtidos para usar nos próximos testes
-        Environment.SetEnvironmentVariable("petId", petId.ToString());
     }
 
+    [Test, Order(6)]
+    public void GetUserLoginTest()
+    {
+        // Configura
+        String username = "joca";
+        String password = "teste";
+
+        var client = new RestClient(BASE_URL);
+        var request = new RestRequest($"user/login?username={username}&password={password}", Method.Get);
+
+        //https://petstore.swagger.io/v2/user/login?username=joca&password=teste
+
+        // Executa
+        var response = client.Execute(request);
+
+        // Valida
+        var responseBody = JsonConvert.DeserializeObject<dynamic>(response.Content);
+
+        Assert.That((int)response.StatusCode, Is.EqualTo(200));
+        Assert.That((int)responseBody.code, Is.EqualTo(200));
+        String message = responseBody.message;
+        String token = message.Substring(message.LastIndexOf(":") + 1);
+        Console.WriteLine($"Token = {token}");
+
+        Environment.SetEnvironmentVariable("token", token);
+
+    }
 }
 
